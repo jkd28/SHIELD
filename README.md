@@ -9,3 +9,11 @@ Secure, High Integrity Exchange of Light Data (SHIELD) is a project which will p
 ![Digital Signature Description](img/DigitalSignatures.png)
 
 SHIELD will make use of a Digital Signature architecture.  This will allow the receiver to verify the signature of the sender, and thus ensure the integrity and authenticity of the data.
+
+## Usage
+1. Ensure you have the correct packages installed through `pip`  
+``> pip -r requirements.txt``  
+
+2. Run the Sender:  
+``> python sender.py``  
+The program will ask for configuration details, such as the serial connection's port and baud rate.  Then, you will be prompted to choose the object which you want to transmit. This can be a file or arbitrary bytes entered on the command line.  
