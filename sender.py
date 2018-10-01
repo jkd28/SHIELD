@@ -8,11 +8,29 @@ from pyfiglet import figlet_format
 import sys
 
 
+# TODO write this method
+def get_file():
+    return ""
+
+
+# TODO write this method
+def get_bytes():
+    return ""
+
+
+def int_within_limits(integer, min, max):
+    if integer <= max and integer >= min:
+        return True
+    else:
+        return False
+
+
 def print_logo():
     # strip colors if stdout is redirected
     init(strip=not sys.stdout.isatty())
     logo = figlet_format('S.H.I.E.L.D.', font='starwars')
     cprint(logo, 'yellow', 'on_grey', attrs=['bold'])
+
 
 def print_critical_failure(error_string):
     print("CRITICAL FAILURE: " + error_string)
@@ -45,7 +63,23 @@ def main():
         print_critical_failure("Error connecting to serial device")
         sys.exit()
 
-    connection.write(b'Hello')
+    print("\n\nStep 2) Select File to send, or send arbitrary bytes")
+    print("--------------------------------\nTransmission Menu:\n\t" +
+          "1. Send File\n\t2. Send Bytes\n--------------------------------")
+
+    try:
+        transmission_source = int(input("\tEnter Selection: "))
+        while not int_within_limits(transmission_source, 1, 2):
+            transmission_source = int(input("\tInvalid Selection. Enter Selection: "))
+    except ValueError:
+        print_critical_failure("Invalid Entry. Be sure to enter an integer.")
+
+    if transmission_source == 1:
+        to_transmit = get_file()
+    elif transmission_source == 2:
+        to_transmit = get_bytes()
+
+    connection.write(to_transmit)
     connection.close()
 
 
