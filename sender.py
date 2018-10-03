@@ -1,21 +1,26 @@
 #!/usr/bin/python3
-import serial
-from serial import SerialException
-from Crypto.Hash import SHA256
 from colorama import init
-from termcolor import cprint
+from Crypto.Hash import SHA256
 from pyfiglet import figlet_format
+from serial import SerialException
+from termcolor import cprint
+import serial
 import sys
 
 
-# TODO write this method
+# TODO write the method to retrieve a file and return
+#      the bytes
 def get_file():
     return ""
 
 
-# TODO write this method
-def get_bytes():
-    return ""
+# TODO write the encryption method
+def encrypt_and_sign(data):
+    # Hash the data
+    hash = SHA256.new()
+    hash.update(data.encode("UTF-8", "replace"))
+    hashed_data = hash.digest()
+    return hashed_data
 
 
 def int_within_limits(integer, min, max):
@@ -38,34 +43,41 @@ def print_critical_failure(error_string):
 
 def configure_serial(port, baudrate):
     connection = serial.Serial()
-    connection.port = port
-    connection.baudrate = baudrate
-    return connection
+    # configure the serial connection settings
+    try:
+        connection.port = port
+        connection.baudrate = baudrate
+        return [True, connection]
+    except ValueError:
+        return [False, connection]
 
 
 def main():
     print_logo()
     print("Step 1) Configure serial connection settings: ")
 
-    # configure the serial connection settings
-    try:
-        serial_port = input("\tEnter Serial Port: ")
-        serial_rate = input("\tEnter Serial Baudrate: ")
-        connection = configure_serial(serial_port, serial_rate)
-    except ValueError:
+    serial_port = input("\tEnter Serial Port: ")
+    serial_rate = input("\tEnter Serial Baudrate: ")
+    [config_success, connection] = configure_serial(serial_port, serial_rate)
+    if not config_success:
         print_critical_failure("Invalid Port/Baudrate Values")
-        sys.exit()
+        sys.exit(1)
 
     # Attempt to connect to the serial device
     try:
-        connection.open()
+        #connection.open()
+        some = 3
     except SerialException:
         print_critical_failure("Error connecting to serial device")
-        sys.exit()
+        sys.exit(1)
 
-    print("\n\nStep 2) Select File to send, or send arbitrary bytes")
-    print("--------------------------------\nTransmission Menu:\n\t" +
-          "1. Send File\n\t2. Send Bytes\n--------------------------------")
+    # Select transmission source (bytes or file)
+    print("\n\nStep 2) Select File to send, or send arbitrary bytes" +
+          "\n--------------------------------" +
+          "\nTransmission Menu:" +
+          "\n\t1. Send File" +
+          "\n\t2. Send Bytes" +
+          "\n--------------------------------")
 
     try:
         transmission_source = int(input("\tEnter Selection: "))
@@ -73,13 +85,17 @@ def main():
             transmission_source = int(input("\tInvalid Selection. Enter Selection: "))
     except ValueError:
         print_critical_failure("Invalid Entry. Be sure to enter an integer.")
+        sys.exit(1)
 
     if transmission_source == 1:
-        to_transmit = get_file()
+        user_data = get_file()
     elif transmission_source == 2:
-        to_transmit = get_bytes()
+        user_data = input("Enter data to send: ")
 
-    connection.write(to_transmit)
+    # Transmit selected data
+    encrypted_transmission = encrypt_and_sign(user_data)
+    print(encrypted_transmission)
+    connection.write(encrypted_transmission)
     connection.close()
 
 
