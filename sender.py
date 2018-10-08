@@ -9,7 +9,7 @@ import sys
 
 
 # TODO add digital signature
-def encrypt_and_sign(data):
+def hash_data(data):
     # Hash the data
     hash = SHA256.new()
     hash.update(data.encode("UTF-8", "replace"))
@@ -25,7 +25,10 @@ def print_logo():
 
 
 def print_critical_failure(error_string):
-    print("CRITICAL FAILURE: " + error_string)
+    printed_string = "CRITICAL FAILURE: " + error_string
+    print(printed_string)
+    return printed_string
+
 
 
 def configure_serial(port, baudrate):
@@ -61,7 +64,7 @@ def main():
     # Send some data
     print("Step 2) Send Data:")
     user_data = input("\tEnter data to send: ")
-    encrypted_transmission = encrypt_and_sign(user_data)
+    encrypted_transmission = hash_data(user_data)
     print(str(encrypted_transmission))
     # connection.write(encrypted_transmission)
 

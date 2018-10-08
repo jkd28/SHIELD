@@ -31,6 +31,7 @@ def configure_serial(port, baudrate):
     except ValueError:
         return [False, connection]
 
+
 def print_logo():
     # strip colors if stdout is redirected
     init(strip=not sys.stdout.isatty())
@@ -52,7 +53,7 @@ def main():
 
     # Read in the data
     # while True:
-    #     bytes_to_read = connection.inWaiting()
+    #     bytes_to_read = connection.in_waiting()
     #     data += connection.read(bytes_to_read)
     data = input("Enter TEST data: ") #
     #data = data.encode("UTF-8", "replace")
