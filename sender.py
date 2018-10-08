@@ -8,7 +8,7 @@ import serial
 import sys
 
 
-# TODO write the encryption method
+# TODO add digital signature
 def encrypt_and_sign(data):
     # Hash the data
     hash = SHA256.new()
@@ -52,18 +52,21 @@ def main():
 
     # Attempt to connect to the serial device
     try:
+        som_code_to_avoid_Errors = 1
         #connection.open()
     except SerialException:
         print_critical_failure("Error connecting to serial device")
         sys.exit(1)
 
     # Send some data
-    user_data = input("Enter data to send: ")
+    print("Step 2) Send Data:")
+    user_data = input("\tEnter data to send: ")
     encrypted_transmission = encrypt_and_sign(user_data)
-    print(encrypted_transmission)
-    connection.write(encrypted_transmission)
+    print(str(encrypted_transmission))
+    # connection.write(encrypted_transmission)
 
-    connection.close()
+    # connection.close()
+    sys.exit(0)
 
 
 if __name__ == "__main__":
