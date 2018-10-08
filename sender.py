@@ -8,12 +8,6 @@ import serial
 import sys
 
 
-# TODO write the method to retrieve a file and return
-#      the bytes
-def get_file():
-    return ""
-
-
 # TODO write the encryption method
 def encrypt_and_sign(data):
     # Hash the data
@@ -21,13 +15,6 @@ def encrypt_and_sign(data):
     hash.update(data.encode("UTF-8", "replace"))
     hashed_data = hash.digest()
     return hashed_data
-
-
-def int_within_limits(integer, min, max):
-    if integer <= max and integer >= min:
-        return True
-    else:
-        return False
 
 
 def print_logo():
@@ -66,36 +53,16 @@ def main():
     # Attempt to connect to the serial device
     try:
         #connection.open()
-        some = 3
     except SerialException:
         print_critical_failure("Error connecting to serial device")
         sys.exit(1)
 
-    # Select transmission source (bytes or file)
-    print("\n\nStep 2) Select File to send, or send arbitrary bytes" +
-          "\n--------------------------------" +
-          "\nTransmission Menu:" +
-          "\n\t1. Send File" +
-          "\n\t2. Send Bytes" +
-          "\n--------------------------------")
-
-    try:
-        transmission_source = int(input("\tEnter Selection: "))
-        while not int_within_limits(transmission_source, 1, 2):
-            transmission_source = int(input("\tInvalid Selection. Enter Selection: "))
-    except ValueError:
-        print_critical_failure("Invalid Entry. Be sure to enter an integer.")
-        sys.exit(1)
-
-    if transmission_source == 1:
-        user_data = get_file()
-    elif transmission_source == 2:
-        user_data = input("Enter data to send: ")
-
-    # Transmit selected data
+    # Send some data
+    user_data = input("Enter data to send: ")
     encrypted_transmission = encrypt_and_sign(user_data)
     print(encrypted_transmission)
     connection.write(encrypted_transmission)
+
     connection.close()
 
 
