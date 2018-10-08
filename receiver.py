@@ -55,13 +55,13 @@ def main():
     # while True:
     #     bytes_to_read = connection.in_waiting()
     #     data += connection.read(bytes_to_read)
-    data = input("Enter TEST data: ") #
-    #data = data.encode("UTF-8", "replace")
+    data = input("Enter TEST data: ")
+    # data = data.encode("UTF-8", "replace")
     all_data = decrypt_data(data)
 
     # the first 32 bytes will be the hash of the data
     their_hash = all_data[0:31]
-    their_test_hash = b'\x9f\x86\xd0\x81\x88L}e\x9a/\xea\xa0\xc5Z\xd0\x15\xa3\xbfO\x1b+\x0b\x82,\xd1]l\x15\xb0\xf0\n\x08' # for the string "test"
+    their_test_hash = b'\x9f\x86\xd0\x81\x88L}e\x9a/\xea\xa0\xc5Z\xd0\x15\xa3\xbfO\x1b+\x0b\x82,\xd1]l\x15\xb0\xf0\n\x08'  # for the string "test"
     our_hash = hash_data(data)
     print("Our Hash: " + str(our_hash))
     print("Their Hash: " + str(their_test_hash))

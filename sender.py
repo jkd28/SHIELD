@@ -30,7 +30,6 @@ def print_critical_failure(error_string):
     return printed_string
 
 
-
 def configure_serial(port, baudrate):
     connection = serial.Serial()
     # configure the serial connection settings
@@ -56,7 +55,7 @@ def main():
     # Attempt to connect to the serial device
     try:
         som_code_to_avoid_Errors = 1
-        #connection.open()
+        # connection.open()
     except SerialException:
         print_critical_failure("Error connecting to serial device")
         sys.exit(1)
