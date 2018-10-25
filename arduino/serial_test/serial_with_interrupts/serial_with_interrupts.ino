@@ -15,7 +15,7 @@ struct initializer_t {
   uint8_t dataHash[32];
 };
 
-struct packet {
+struct packet_t {
   uint32_t packetID;
   uint32_t numBytes;
   uint8_t data[1024];  
@@ -62,15 +62,16 @@ void USART_write_string(uint8_t *str) {
 
 int main() {
   USART_INIT();
-  uint8_t initializerNumPacketsBytes[4];
+  uint8_t integerBuffer[4];
   uint32_t temp;
 
   struct initializer_t initializerPacket;
+  struct packet_t packet;
   int bufferCount = 0;
 
   while(1){
     char character = USART_receive_char();
-    uint32_t dataSize = 0, i;
+    uint32_t dataSize = 0, i, j;
     
     // Check for START bit
     if (character == 'S') {
@@ -83,28 +84,54 @@ int main() {
       for (i = 0; i < 32; i++){
           initializerPacket.dataHash[i] = USART_receive_char();
       }
-      
       for (i = 0; i < 4; i++){
-          initializerNumPacketsBytes[i] = USART_receive_char();
+          integerBuffer[i] = USART_receive_char();
       }
-      initializerPacket.numPackets = *(uint32_t *)initializerNumPacketsBytes;
+      initializerPacket.numPackets = *(uint32_t *)integerBuffer; // Cast the array to a useable uint32_t
 
 
+      // Print number of packets, the filename, and the hash
       for(i = 0 ; i < 4; i++){
-        USART_write_char(initializerNumPacketsBytes[i]);
+        USART_write_char(integerBuffer[i]);
       }
-      
       for(i = 0 ; i < 32; i++){
         USART_write_char(initializerPacket.filename[i]);
       }
-
       for(i = 0 ; i < 32; i++){
         USART_write_char(initializerPacket.dataHash[i]);
       }
      
 
+      // Request a packet and transmit the packet until we've done all packets
       for (i = 0; i < initializerPacket.numPackets; i++){
-        USART_write_char('C');
+        // Request a packet
+        USART_write_string("PR");
+
+        // Read in the packet ID
+        for(j = 0; j < 4; j++){
+          integerBuffer[j] = USART_receive_char();
+        }
+        packet.packetID = *(uint32_t *)integerBuffer;
+        
+        // Read in the number of bytes
+        for(j = 0; j < 4; j++){
+          integerBuffer[j] = USART_receive_char();
+        }
+        packet.numBytes = *(uint32_t *)integerBuffer;
+        
+        // Read in the data
+        for(j = 0; j < packet.numBytes; j++){
+          packet.data[j] = USART_receive_char();
+        }
+
+
+        // Print some debug stuff
+        for(j = 0; j < packet.packetID; j++){
+          USART_write_char('I');
+        }
+        for(j=0; j < packet.numBytes; j++){
+          USART_write_char('B');
+        }
       }
       
       
