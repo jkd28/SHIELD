@@ -6,17 +6,26 @@ from serial import SerialException
 from struct import *
 from termcolor import cprint
 import serial
+import struct
 import sys
+import time
 
+# Define globals
+PACKET_SIZE = 1024
 
 # TODO add digital signature
 def hash_data(data):
     # Hash the data
     hash = SHA256.new()
-    hash.update(data.encode("UTF-8", "replace"))
+    # hash.update(data.encode("UTF-8", "replace"))
+    hash.update(data)
     hashed_data = hash.digest()
     return hashed_data
 
+
+def getFilenameInByteArray(filename):
+    filename_bytes = bytes(filename, encoding='UTF-8')
+    return filename_bytes
 
 def print_logo():
     # strip colors if stdout is redirected
@@ -83,8 +92,9 @@ def main():
         sys.exit(1)
 
     # Send some data
-    user_data = input("Enter data to send: ")
-    while not user_data == "":
+    user_data = input("Press enter to send: ")
+    while user_data == "":
+        # Send start bit and wait for acknowledgement
         connection.write(bytes('S'.encode("UTF-8", "ignore")))
         ack = connection.read(2)
         if not ack.decode("UTF-8") == "RS":
@@ -94,18 +104,77 @@ def main():
         else:
             print_success("Start-bit Acknowledged")
 
-        connection.write(bytes("hello world".encode("UTF-8", "replace")))
+        # Open file for reading
+        filename = "img/DigitalSignatures.png"
+        file_data = open(filename, "rb").read()
+        # print(file_data)
 
-        connection.write(bytes('E'.encode("UTF-8", "ignore")))
-        ack = connection.read_until()
-        if not ack.decode("UTF-8") == "RE":
-            print_critical_failure("No acknowledgement of start bit")
+        # Determine number of packets based on data size
+        file_size = len(file_data)
+        division = divmod(file_size, PACKET_SIZE)
+
+        number_of_packets = division[0]
+        extra_data = division[1]
+        if not extra_data == 0:
+            number_of_packets = number_of_packets + 1
+
+        print("File Size = " + str(file_size))
+        print("Number of Packets = " + str(number_of_packets))
+
+        # Divide data into packets
+        packet_data = []
+        for i in range(0, number_of_packets):
+            # Packets always start at a multiple of PACKET_SIZE
+            start_of_data = i * PACKET_SIZE
+
+            if  i == number_of_packets - 1:
+                end_of_data = start_of_data + extra_data
+            else:
+                end_of_data = (i+1) * PACKET_SIZE
+
+            print("Packet " + str(i))
+            print("\tStart: " + str(start_of_data))
+            print("\tEnd  : " + str(end_of_data))
+            packet_data.append(file_data[start_of_data : end_of_data])
+
+        # Create introductory packet
+        data_hash = hash_data(file_data)
+        filename_bytes = getFilenameInByteArray(filename)
+        initializer_packet = struct.pack('<32s32si', filename_bytes, data_hash, number_of_packets)
+        # print(data_hash)
+        # print(filename_bytes)
+        print(initializer_packet)
+        print(len(initializer_packet))
+
+        print("\nWriting Data...")
+        connection.write(initializer_packet)
+        print("Data Written.")
+
+        # arduino_packets = int.from_bytes(connection.read(4), byteorder='little')
+        arduino_packets = connection.read(4)
+        arduino_filename = connection.read(32)
+        arduino_hash = connection.read(32)
+        print("\nOur number of packets:  " + str(number_of_packets.to_bytes(4, byteorder='little')))
+        print("Micro's num of packets:  " + str(arduino_packets))
+
+        print("\nOur filename bytes:     " + str(filename_bytes))
+        print("Arduino's Filename bytes: " + str(arduino_filename))
+
+        print("\nOur hash    : " + str(data_hash))
+        print("Arduino's hash: " + str(arduino_hash))
+
+        debug = connection.read(number_of_packets)
+        print(debug)
+
+        print("Reading for end terminator")
+        end = connection.read(2)
+        if not end.decode("UTF-8") == "ER":
+            print_critical_failure("Program did not reach end")
+            print("Read Value: " + end.decode("UTF-8"))
             connection.close()
             sys.exit(1)
         else:
-            print_success("End-bit Acknowledged")
-
-
+            print_success("Program Reached End!")
 
         # Read output data
         user_data = input("Enter data to send: ")

@@ -5,21 +5,21 @@
 #define F_CPU 16000000
 #define USART_BAUDRATE 115200
 #define BAUD_PRESCALE (((F_CPU / (USART_BAUDRATE * 8UL)))-1)
-#define BUFFER_SIZE 32
+#define PACKET_SIZE 1024
 
-// Some global definitions
-char stringBuf[BUFFER_SIZE];
-int bufferCount = 0;
 
-void flush_buffer(){
-  int i;
-  for(i = 0; i < BUFFER_SIZE; i++){
-    if (stringBuf[i] != 0x00){
-      USART_send(stringBuf[i]);
-      stringBuf[i] = 0x00;  
-    }
-  }
-}
+// Define packet structures
+struct initializer_t {
+  uint32_t numPackets;
+  uint8_t filename[32];
+  uint8_t dataHash[32];
+};
+
+struct packet {
+  uint32_t packetID;
+  uint32_t numBytes;
+  uint8_t data[1024];  
+};
 
 void USART_INIT() {
   UBRR0 = BAUD_PRESCALE;
@@ -35,15 +35,7 @@ void USART_INIT() {
   UCSR0A = (1 << U2X0); // Enable double asynch mode
 }
 
-void USART_send(unsigned char data) {
-  //while the transmit buffer is not empty loop
-  while (!(UCSR0A & (1 << UDRE0)));
-
-  //when the buffer is empty write data to the transmitted
-  UDR0 = data;
-}
-
-unsigned char USART_receive(void) {
+unsigned char USART_receive_char(void) {
   /* Wait for data to be received */
   while (!(UCSR0A & (1 << RXC0)));
 
@@ -51,32 +43,72 @@ unsigned char USART_receive(void) {
   return UDR0;
 }
 
-void USART_sendString(char *str) {
+void USART_write_char(uint8_t data) {
+  //while the transmit buffer is not empty loop
+  while (!(UCSR0A & (1 << UDRE0)));
+
+  //when the buffer is empty write data to the transmitted
+  UDR0 = data;
+}
+
+void USART_write_string(uint8_t *str) {
   int i = 0;
   while(str[i] != 0x00) {
-    USART_send(str[i++]);
+    USART_write_char(str[i++]);
   }
   return;
 }
 
-/* TODO Perfect this code */
+
 int main() {
   USART_INIT();
+  uint8_t initializerNumPacketsBytes[4];
+  uint32_t temp;
+
+  struct initializer_t initializerPacket;
+  int bufferCount = 0;
 
   while(1){
-    char character = USART_receive();
+    char character = USART_receive_char();
+    uint32_t dataSize = 0, i;
+    
     // Check for START bit
     if (character == 'S') {
-      USART_sendString("RS");
-      character = USART_receive();
+      USART_write_string("RS");
 
-      // Check for END bit
-      while (character != 'E'){
-        // Read each character before the end bit into the buffer
-        character = USART_receive();
-        stringBuf[bufferCount++] = character;
+      // Now read intitializer packet
+      for (i = 0; i < 32; i++){
+          initializerPacket.filename[i] = USART_receive_char();
       }
-      USART_sendString("RE");
+      for (i = 0; i < 32; i++){
+          initializerPacket.dataHash[i] = USART_receive_char();
+      }
+      
+      for (i = 0; i < 4; i++){
+          initializerNumPacketsBytes[i] = USART_receive_char();
+      }
+      initializerPacket.numPackets = *(uint32_t *)initializerNumPacketsBytes;
+
+
+      for(i = 0 ; i < 4; i++){
+        USART_write_char(initializerNumPacketsBytes[i]);
+      }
+      
+      for(i = 0 ; i < 32; i++){
+        USART_write_char(initializerPacket.filename[i]);
+      }
+
+      for(i = 0 ; i < 32; i++){
+        USART_write_char(initializerPacket.dataHash[i]);
+      }
+     
+
+      for (i = 0; i < initializerPacket.numPackets; i++){
+        USART_write_char('C');
+      }
+      
+      
+      USART_write_string("ER");
     }
   }
 }
