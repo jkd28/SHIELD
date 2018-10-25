@@ -150,7 +150,8 @@ def main():
         connection.write(initializer_packet)
         print("Data Written.")
 
-        # arduino_packets = int.from_bytes(connection.read(4), byteorder='little')
+        ## DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG BELOW
+
         arduino_packets = connection.read(4)
         arduino_filename = connection.read(32)
         arduino_hash = connection.read(32)
@@ -162,22 +163,59 @@ def main():
 
         print("\nOur hash    : " + str(data_hash))
         print("Arduino's hash: " + str(arduino_hash))
+        ## DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG ABOVE
 
-        debug = connection.read(number_of_packets)
-        print(debug)
 
-        print("Reading for end terminator")
-        end = connection.read(2)
-        if not end.decode("UTF-8") == "ER":
+        # Create all packets
+        all_packets = []
+        for i in range(0, number_of_packets):
+            if not i == number_of_packets - 1:
+                number_of_bytes = 1024
+            else:
+                number_of_bytes = extra_data
+
+            packet = {
+                "id" : i,
+                "num_bytes" : number_of_bytes,
+                "data" : packet_data[i]
+            }
+            all_packets.append(packet)
+
+        # Look for a packet request
+        packet_number = 0
+        request = connection.read(2)
+        while request.decode("UTF-8") == "PR":
+            print("Packet Requested!")
+            # On request, send a packet
+            packet_to_send = all_packets[packet_number]
+
+            sendable = struct.pack('<ii1024s',
+                                   packet_to_send['id'],
+                                   packet_to_send['num_bytes'],
+                                   packet_to_send['data']
+                                  )
+            print("Sending Packet " + str(packet_number))
+            connection.write(sendable)
+
+            ## DEBUG prints
+            print(connection.read(packet_to_send['id']))
+            print(connection.read(packet_to_send['num_bytes']))
+            ## DEBUG above
+
+            packet_number = packet_number + 1
+            request = connection.read(2)
+
+
+        if not request.decode("UTF-8") == "ER":
             print_critical_failure("Program did not reach end")
-            print("Read Value: " + end.decode("UTF-8"))
+            print("Read Value: " + request.decode("UTF-8"))
             connection.close()
             sys.exit(1)
         else:
             print_success("Program Reached End!")
 
         # Read output data
-        user_data = input("Enter data to send: ")
+        user_data = input("Press enter to send: ")
 
     print("Exiting gracefully...")
     connection.close()
