@@ -7,6 +7,7 @@ _Bool trigger;
 ISR(TIMER0_COMPA_vect)
 {
     TCNT0 = 0; //MUST RESET TIMER IMMEDIATELY AFTER INTERRUPT FOR ACCURATE TIMING
+    trigger = 1;
 }
 
 
@@ -37,6 +38,8 @@ int main(void)
   
   while (1){
     if(trigger){
+      trigger = 0;
+        
       ADCSRA |= (1<<ADSC);
       while ((ADCSRA & (1<<ADIF)) == 0);
       Rval = ADCH;
