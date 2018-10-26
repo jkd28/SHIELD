@@ -1,27 +1,12 @@
 #include <avr/interrupt.h>
 #include <Time.h>
 
-void wait(volatile int time_multiple, volatile char time_choice);
-void delay_T_msec_timer1(volatile char time_choice);
-uint8_t Rval;
-_Bool new_bit;
-
+_Bool trigger;
 
 //kHz Sample 
 ISR(TIMER0_COMPA_vect)
 {
     TCNT0 = 0; //MUST RESET TIMER IMMEDIATELY AFTER INTERRUPT FOR ACCURATE TIMING
-    
-    ADCSRA |= (1<<ADSC);
-    while ((ADCSRA & (1<<ADIF)) == 0);
-    Rval = ADCH;
-
-    if(Rval >= 0x80){
-      new_bit = 1;
-    }
-    else{
-      new_bit = 0;
-    }
 }
 
 
@@ -30,6 +15,9 @@ int main(void)
   DDRC = 0 << PORTC0; //A/D for PinC0
   DDRD = 0xFF;
   PORTB=0x00;
+
+  uint8_t Rval;
+  _Bool new_bit;
   
   //#############    ADC Setup    ###########################
   PRR = 0x00;
@@ -47,5 +35,18 @@ int main(void)
   //#############################################################  
 
   
-  while (1){}
+  while (1){
+    if(trigger){
+      ADCSRA |= (1<<ADSC);
+      while ((ADCSRA & (1<<ADIF)) == 0);
+      Rval = ADCH;
+  
+      if(Rval >= 0x80){
+        new_bit = 1;
+      }
+      else{
+        new_bit = 0;
+      }
+    }  
+  }
 }
