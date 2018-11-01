@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 from colorama import init
 from Crypto.Hash import SHA256
+from progress.bar import ShadyBar
 from pyfiglet import figlet_format
 from serial import SerialException
 from struct import *
@@ -58,7 +59,7 @@ def configure_serial(port, baudrate):
     try:
         connection.port = port
         connection.baudrate = baudrate
-        connection.timeout = 10
+        connection.timeout = 30
         return [True, connection]
     except ValueError:
         return [False, connection]
@@ -132,9 +133,9 @@ def main():
             else:
                 end_of_data = (i+1) * PACKET_SIZE
 
-            print("Packet " + str(i))
-            print("\tStart: " + str(start_of_data))
-            print("\tEnd  : " + str(end_of_data))
+            # print("Packet " + str(i))
+            # print("\tStart: " + str(start_of_data))
+            # print("\tEnd  : " + str(end_of_data))
             packet_data.append(file_data[start_of_data : end_of_data])
 
         # Create introductory packet
@@ -143,28 +144,26 @@ def main():
         initializer_packet = struct.pack('<32s32si', filename_bytes, data_hash, number_of_packets)
         # print(data_hash)
         # print(filename_bytes)
-        print(initializer_packet)
-        print(len(initializer_packet))
+        # print(initializer_packet)
+        # print(len(initializer_packet))
 
-        print("\nWriting Data...")
+        print("\nWriting Initialization Packet...")
         connection.write(initializer_packet)
-        print("Data Written.")
+        print("Writing Initialization Written.\n\n")
 
         ## DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG BELOW
-
         arduino_packets = connection.read(4)
         arduino_filename = connection.read(32)
         arduino_hash = connection.read(32)
-        print("\nOur number of packets:  " + str(number_of_packets.to_bytes(4, byteorder='little')))
-        print("Micro's num of packets:  " + str(arduino_packets))
-
-        print("\nOur filename bytes:     " + str(filename_bytes))
-        print("Arduino's Filename bytes: " + str(arduino_filename))
-
-        print("\nOur hash    : " + str(data_hash))
-        print("Arduino's hash: " + str(arduino_hash))
+        # print("\nOur number of packets:  " + str(number_of_packets.to_bytes(4, byteorder='little')))
+        # print("Micro's num of packets:  " + str(arduino_packets))
+        #
+        # print("\nOur filename bytes:     " + str(filename_bytes))
+        # print("Arduino's Filename bytes: " + str(arduino_filename))
+        #
+        # print("\nOur hash    : " + str(data_hash))
+        # print("Arduino's hash: " + str(arduino_hash) + "\n\n")
         ## DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG ABOVE
-
 
         # Create all packets
         all_packets = []
@@ -184,8 +183,10 @@ def main():
         # Look for a packet request
         packet_number = 0
         request = connection.read(2)
+        print("Beginning Packet Transfer and Transmission")
+        progress_bar = ShadyBar("Transmitting Data:", suffix='%(percent)d%%', max=number_of_packets)
         while request.decode("UTF-8") == "PR":
-            print("Packet Requested!")
+            # print("Packet Requested!")
             # On request, send a packet
             packet_to_send = all_packets[packet_number]
 
@@ -194,17 +195,21 @@ def main():
                                    packet_to_send['num_bytes'],
                                    packet_to_send['data']
                                   )
-            print("Sending Packet " + str(packet_number))
+            #print("Sending Packet " + str(packet_number))
             connection.write(sendable)
 
             ## DEBUG prints
-            print(connection.read(packet_to_send['id']))
-            print(connection.read(packet_to_send['num_bytes']))
+            received_packet_id = connection.read(packet_to_send['id'])
+            received_packet_numbytes = connection.read(packet_to_send['num_bytes'])
+            # print(str(received_packet_id))
+            # print(str(received_packet_numbytes))
             ## DEBUG above
 
             packet_number = packet_number + 1
             request = connection.read(2)
 
+            # Update progress bar
+            progress_bar.next()
 
         if not request.decode("UTF-8") == "ER":
             print_critical_failure("Program did not reach end")
@@ -212,6 +217,7 @@ def main():
             connection.close()
             sys.exit(1)
         else:
+            progress_bar.finish()
             print_success("Program Reached End!")
 
         # Read output data

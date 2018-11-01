@@ -6,12 +6,7 @@
 #define USART_BAUDRATE 115200
 #define BAUD_PRESCALE (((F_CPU / (USART_BAUDRATE * 8UL)))-1)
 #define PACKET_SIZE 1024
-#define LOW_BIT 0x3F
-#define HIGH_BIT 0x2F
-#define NO_BIT 0x36
 
-// Define some globals
-_Bool trigger = 0;
 
 // Define packet structures
 struct initializer_t {
@@ -38,42 +33,6 @@ void USART_INIT() {
            (0 << UMSEL01) | (0 << UMSEL00);
   UCSR0B = ((1 << RXEN0) | (1 << TXEN0)); // Enable receiver and transmitter
   UCSR0A = (1 << U2X0); // Enable double asynch mode
-}
-
-void PWM_INIT() {
-  DDRD = DDRD | (1<<PIND3); //analog pin out: 3 is pwm
-  OCR2B = 0x00; //set duty to 0%
-  DDRC = 0x01;  //trigger snoop on PORTC0
-  DDRB = 0xFF; //output for data snoop is PORTB
-  
-  //TCCR2A = _BV(COM2A1) | _BV(COM2B1) | _BV(WGM21) | _BV(WGM20);
-  TCCR2A = _BV(COM2B1) | _BV(WGM21) | _BV(WGM20); //com2b1 enables pwm on analog 3, wgm bits set pwm type
-  TCCR2B = 1 << WGM22 | 0 << CS22 | 1 << CS21 | 0 << CS20; //CS bits for pre-scale of 8
-  OCR2B = 0x1F; //start pwm
-  OCR2A = NO_BIT;
-}
-
-void TIMER_INIT(){
-  TCCR0A = 0x00;
-  TCNT0 = 0x00; //pre-load timer to 0
-  OCR0A = 0xF9; //compare level for 1 millisecond 
-  TIMSK0 = (1 << OCIE0A);
-}
-
-void startTimer(){
-  TCCR0B = 1 <<CS21 | 1<<CS20; //TCCR0B = 0x03, pre-scaler 64;
-  sei();
-}
-
-void stopTimer(){
-  OCR2A = NO_BIT;
-  cli();
-}
-
-ISR(TIMER0_COMPA_vect)
-{
-  TCNT0 = 0;
-  trigger = 1;
 }
 
 unsigned char USART_receive_char(void) {
@@ -103,21 +62,16 @@ void USART_write_string(uint8_t *str) {
 
 int main() {
   USART_INIT();
-  PWM_INIT();
-  TIMER_INIT();
   uint8_t integerBuffer[4];
   uint32_t temp;
 
   struct initializer_t initializerPacket;
   struct packet_t packet;
-  uint32_t sendCounter = 0;
-  uint8_t *packetArray;
+  int bufferCount = 0;
 
   while(1){
     char character = USART_receive_char();
     uint32_t dataSize = 0, i, j;
-    _Bool data_bit = 0;
-    uint8_t bit_counter = 0;
     
     // Check for START bit
     if (character == 'S') {
@@ -170,6 +124,7 @@ int main() {
           packet.data[j] = USART_receive_char();
         }
 
+
         // Print some debug stuff
         for(j = 0; j < packet.packetID; j++){
           USART_write_char('I');
@@ -177,45 +132,9 @@ int main() {
         for(j=0; j < packet.numBytes; j++){
           USART_write_char('B');
         }
-
-        
-        // SEND SOME DATA
-        packetArray = (uint8_t *)&packet;
-        sendCounter = 0;
-        data_bit = 0;
-        startTimer();
-        while(sendCounter < packet.numBytes) {
-          PORTC = trigger;
-          if(trigger){
-            trigger = 0;
-  
-            // Pick our bit from the packet
-            if(bit_counter < 8){
-              data_bit = ((packet.data[sendCounter] >> bit_counter) & 0x1);
-            } else if(sendCounter < 1023) {
-              bit_counter = 0;
-              sendCounter++;
-              data_bit = (packet.data[sendCounter] & 0x1);
-            } else if(sendCounter == 1023) {
-                sendCounter++;
-                continue;
-            }
-            bit_counter++;
-
-            // Set frequency according to bit value
-            if(data_bit){
-              OCR2A = HIGH_BIT;
-              PORTB = 0xFF;
-            } else {
-              OCR2A = LOW_BIT;
-              PORTB = 0x00;
-            }
-          }
-        }
-        
-        stopTimer();
-        
       }
+      
+      
       USART_write_string("ER");
     }
   }
