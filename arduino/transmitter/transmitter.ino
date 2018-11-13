@@ -6,9 +6,9 @@
 #define USART_BAUDRATE 115200
 #define BAUD_PRESCALE (((F_CPU / (USART_BAUDRATE * 8UL)))-1)
 #define PACKET_SIZE 1024
-#define LOW_BIT 0x3F
-#define HIGH_BIT 0x2F
-#define NO_BIT 0x36
+#define LOW_BIT 0x36  // 36kHz
+#define HIGH_BIT 0x2F // 42kHz
+#define NO_BIT 0x3F   // 32kHz
 
 // Define some globals
 _Bool trigger = 0;
@@ -21,7 +21,6 @@ struct initializer_t {
 };
 
 struct packet_t {
-  uint32_t packetID;
   uint32_t numBytes;
   uint8_t data[1024];  
 };
@@ -62,12 +61,13 @@ void TIMER_INIT(){
 
 void startTimer(){
   TCCR0B = 1 <<CS21 | 1<<CS20; //TCCR0B = 0x03, pre-scaler 64;
+  TCNT0 = 0;
   sei();
 }
 
 void stopTimer(){
-  OCR2A = NO_BIT;
   cli();
+  OCR2A = NO_BIT;
 }
 
 ISR(TIMER0_COMPA_vect)
@@ -100,25 +100,21 @@ void USART_write_string(uint8_t *str) {
   return;
 }
 
-
 int main() {
   USART_INIT();
   PWM_INIT();
   TIMER_INIT();
-  uint8_t integerBuffer[4];
-  uint32_t temp;
-
-  struct initializer_t initializerPacket;
-  struct packet_t packet;
-  uint32_t sendCounter = 0;
-  uint8_t *packetArray;
 
   while(1){
-    char character = USART_receive_char();
+    uint8_t integerBuffer[4];
+    struct initializer_t initializerPacket;
+    struct packet_t packet;
+    uint32_t sendCounter = 0;
     uint32_t dataSize = 0, i, j;
     _Bool data_bit = 0;
     uint8_t bit_counter = 0;
-    
+
+    char character = USART_receive_char();
     // Check for START bit
     if (character == 'S') {
       USART_write_string("RS");
@@ -136,7 +132,7 @@ int main() {
       initializerPacket.numPackets = *(uint32_t *)integerBuffer; // Cast the array to a useable uint32_t
 
 
-      // Print number of packets, the filename, and the hash
+      // Print number of packets, the filename, and the hash for DEBUG
       for(i = 0 ; i < 4; i++){
         USART_write_char(integerBuffer[i]);
       }
@@ -153,12 +149,6 @@ int main() {
         // Request a packet
         USART_write_string("PR");
 
-        // Read in the packet ID
-        for(j = 0; j < 4; j++){
-          integerBuffer[j] = USART_receive_char();
-        }
-        packet.packetID = *(uint32_t *)integerBuffer;
-        
         // Read in the number of bytes
         for(j = 0; j < 4; j++){
           integerBuffer[j] = USART_receive_char();
@@ -171,16 +161,11 @@ int main() {
         }
 
         // Print some debug stuff
-        for(j = 0; j < packet.packetID; j++){
-          USART_write_char('I');
-        }
         for(j=0; j < packet.numBytes; j++){
           USART_write_char('B');
         }
-
         
         // SEND SOME DATA
-        packetArray = (uint8_t *)&packet;
         sendCounter = 0;
         data_bit = 0;
         startTimer();
@@ -212,9 +197,7 @@ int main() {
             }
           }
         }
-        
         stopTimer();
-        
       }
       USART_write_string("ER");
     }

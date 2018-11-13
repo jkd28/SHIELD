@@ -1,5 +1,4 @@
 termcolor==1.1.0
-progress==1.4
 colorama==0.3.9
 pyfiglet==0.7.5
 pycrypto==2.6.1
