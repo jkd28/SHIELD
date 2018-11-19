@@ -104,7 +104,7 @@ def main():
             print_success("Start-bit Acknowledged")
 
         # Open file for reading
-        filename = "img/FourKiloJ.txt"
+        filename = "LongHP.txt"
         file_data = open(filename, "rb").read()
         # print(file_data)
 
@@ -139,29 +139,30 @@ def main():
         # Create introductory packet
         data_hash = hash_data(file_data)
         filename_bytes = getFilenameInByteArray(filename)
-        initializer_packet = struct.pack('<32s32si', filename_bytes, data_hash, number_of_packets)
-        print(data_hash)
-        print(filename_bytes)
-        print(initializer_packet)
-        print(len(initializer_packet))
+        initializer_packet = struct.pack('<32s32si', filename_bytes, data_hash, number_of_packets + 1)
+        # print(data_hash)
+        # print(filename_bytes)
+        # print(initializer_packet)
+        # print(len(initializer_packet))
 
         print("\nWriting Initialization Packet...\n\n")
         connection.write(initializer_packet)
 
         ## DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG BELOW
         arduino_packets = connection.read(4)
-        print("\nOur number of packets:  " + str(number_of_packets.to_bytes(4, byteorder='little')))
-        print("Micro's num of packets:  " + str(arduino_packets))
+        # print("\nOur number of packets:  " + str(number_of_packets.to_bytes(4, byteorder='little')))
+        # print("Micro's num of packets:  " + str(arduino_packets))
         arduino_filename = connection.read(32)
-        print("\nOur filename bytes:     " + str(filename_bytes))
-        print("Arduino's Filename bytes: " + str(arduino_filename))
+        # print("\nOur filename bytes:     " + str(filename_bytes))
+        # print("Arduino's Filename bytes: " + str(arduino_filename))
         arduino_hash = connection.read(32)
-        print("\nOur hash    : " + str(data_hash))
-        print("Arduino's hash: " + str(arduino_hash) + "\n\n")
+        # print("\nOur hash    : " + str(data_hash))
+        # print("Arduino's hash: " + str(arduino_hash) + "\n\n")
         ## DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG ABOVE
 
-        # Create all packets
+        # Create info packet
         all_packets = []
+        # Create all packets
         for i in range(0, number_of_packets):
             if not i == number_of_packets - 1:
                 number_of_bytes = 1024
@@ -178,26 +179,45 @@ def main():
         packet_number = 0
         request = connection.read(2)
         print("Beginning Packet Transfer and Transmission")
+        first_packet = True
         while request.decode("UTF-8") == "PR":
-            print("Packet Requested! Packet " + str(packet_number + 1) +
-                  " of " + str(number_of_packets))
             # On request, send a packet
-            packet_to_send = all_packets[packet_number]
+            if first_packet:
+                print("Sending Info Packet")
+                first_packet = False
+                sendable = struct.pack('<i32s32sii', 72, filename_bytes, data_hash, number_of_packets, extra_data)
 
-            sendable = struct.pack('<i1024s',
-                                   packet_to_send['num_bytes'],
-                                   packet_to_send['data']
-                                  )
-            #print("Sending Packet " + str(packet_number))
-            connection.write(sendable)
+                print(sendable)
+                connection.write(sendable)
+                received_packet_numbytes = connection.read(72)
+                ## DEBUG prints
+                print(str(received_packet_numbytes))
+                print(len(received_packet_numbytes))
+                ## DEBUG above
 
-            ## DEBUG prints
-            received_packet_numbytes = connection.read(packet_to_send['num_bytes'])
-            print(str(received_packet_numbytes))
-            print(len(received_packet_numbytes))
-            ## DEBUG above
+            else:
+                print("Packet Requested! Packet " + str(packet_number + 1) + " of " + str(len(all_packets)))
 
-            packet_number = packet_number + 1
+                packet_to_send = all_packets[packet_number]
+                print(packet_to_send['num_bytes'])
+                print(packet_to_send['data'])
+                sendable = struct.pack('<i1024s',
+                                       packet_to_send['num_bytes'],
+                                       packet_to_send['data']
+                                      )
+
+                print(sendable)
+                connection.write(sendable)
+
+                received_packet_numbytes = connection.read(packet_to_send['num_bytes'])
+
+                ## DEBUG prints
+                print(str(received_packet_numbytes))
+                print(len(received_packet_numbytes))
+                ## DEBUG above
+
+                packet_number = packet_number + 1
+
             request = connection.read(2)
 
         if not request.decode("UTF-8") == "ER":

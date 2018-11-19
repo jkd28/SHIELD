@@ -4,7 +4,9 @@ from Crypto.Hash import SHA256
 from pyfiglet import figlet_format
 from serial import SerialException
 from termcolor import cprint
+import locale
 import serial
+import struct
 import sys
 
 
@@ -22,7 +24,7 @@ def configure_serial(port, baudrate):
     try:
         connection.port = port
         connection.baudrate = baudrate
-        connection.timeout = 30
+        connection.timeout = 20
         return [True, connection]
     except ValueError:
         return [False, connection]
@@ -68,23 +70,64 @@ def main():
         print_critical_failure("Error connecting to serial device")
         sys.exit(1)
 
-    #TODO read in filename from initializer packet
-    filename = "test.txt"
-    file = open(filename, "w+")
+    print("Getting Information Packet: ")
+    info_packet_struct = connection.read(72)
+    print("Info Packet Received")
+    print(info_packet_struct)
 
-    print("Waiting for data...")
+    information = struct.unpack('<32s32sii', info_packet_struct)
+    # parse filename
+    received_filename = information[0].decode(locale.getdefaultlocale()[1]).rstrip('\0')
+    # extension = filename.split('.')[1]
+    # filename_beginning = filename.split('.')[0]
+    # filename = filename_beginning + "test." + extension
+    filename = "test/RECEIVED" + received_filename
+
+
+    # parse other information
+    data_hash = information[1]
+    num_packets = information[2]
+    num_bytes_in_last_packet = information[3]
+
+    print("Filename: " + filename)
+    print("Hash: " + str(data_hash))
+    print("Num Packets: " + str(num_packets))
+    print("Last Packet Bytes: " + str(num_bytes_in_last_packet))
+
+    print("\n\rWaiting for data")
+    packets = []
     packet_count = 0
-    while 1:
-        character = connection.read(1)
-        if character.decode("UTF-8", errors="replace") == 'D':
-            print("Received Got Some Data! Reading...")
+    while packet_count < num_packets:
+        if packet_count == (num_packets - 1):
+            # Last packet does not have a kilobyte
+            expected_bytes = num_bytes_in_last_packet
+        else:
+            expected_bytes = 1024
 
-            # Now we expect some data
-            packet_data = connection.read(1024)
-            print(packet_data)
-            file.write(packet_data.decode("UTF-8", errors="replace"))
-            packet_count = packet_count + 1
-            print("Received Packet " + str(packet_count))
+        # Now we expect some data
+        packet_data = connection.read(expected_bytes)
+        packets.append(packet_data)
+        packet_count = packet_count + 1
+        print(packet_data)
+        print(len(packet_data))
+        print("Received Packet " + str(packet_count))
+
+    # Once finished reading each packet,
+    our_hash = ''
+    file = open(filename, "w")
+    for packet in packets:
+        file.write(packet.decode("UTF-8"))
+        our_hash = our_hash + packet.decode("UTF-8")
+
+    file.close()
+    our_hash = hash_data(our_hash)
+    print("Computed Hash: " + str(our_hash))
+
+    print("Comparing Hashes....")
+    if(data_hash == our_hash):
+        print("SUCCESS! HASHES MATCH!!")
+    else:
+        print("Hashes do not match.")
 
     sys.exit(0)
 
