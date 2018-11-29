@@ -22,7 +22,7 @@ struct initializer_t {
 
 struct packet_t {
   uint32_t numBytes;
-  uint8_t data[1024];  
+  uint8_t data[1024];
 };
 
 void USART_INIT() {
@@ -44,7 +44,7 @@ void PWM_INIT() {
   OCR2B = 0x00; //set duty to 0%
   DDRC = 0x01;  //trigger snoop on PORTC0
   DDRB = 0xFF; //output for data snoop is PORTB
-  
+
   //TCCR2A = _BV(COM2A1) | _BV(COM2B1) | _BV(WGM21) | _BV(WGM20);
   TCCR2A = _BV(COM2B1) | _BV(WGM21) | _BV(WGM20); //com2b1 enables pwm on analog 3, wgm bits set pwm type
   TCCR2B = 1 << WGM22 | 0 << CS22 | 1 << CS21 | 0 << CS20; //CS bits for pre-scale of 8
@@ -55,7 +55,7 @@ void PWM_INIT() {
 void TIMER_INIT(){
   TCCR0A = 0x00;
   TCNT0 = 0x00; //pre-load timer to 0
-  OCR0A = 0xF9; //compare level for 1 millisecond 
+  OCR0A = 0xF9; //compare level for 1 millisecond
   TIMSK0 = (1 << OCIE0A);
 }
 
@@ -142,7 +142,7 @@ int main() {
       for(i = 0 ; i < 32; i++){
         USART_write_char(initializerPacket.dataHash[i]);
       }
-     
+
 
       // Request a packet and transmit the packet until we've done all packets
       for (i = 0; i < initializerPacket.numPackets; i++){
@@ -154,7 +154,7 @@ int main() {
           integerBuffer[j] = USART_receive_char();
         }
         packet.numBytes = *(uint32_t *)integerBuffer;
-        
+
         // Read in the data
         for(j = 0; j < packet.numBytes; j++){
           packet.data[j] = USART_receive_char();
@@ -164,25 +164,27 @@ int main() {
         for(j=0; j < packet.numBytes; j++){
           USART_write_char('B');
         }
-        
+
         // SEND SOME DATA
         sendCounter = 0;
         data_bit = 0;
+        bit_counter = 0;
         startTimer();
         while(sendCounter < packet.numBytes) {
           PORTC = trigger;
           if(trigger){
             trigger = 0;
-  
+
             // Pick our bit from the packet
             if(bit_counter < 8){
               data_bit = ((packet.data[sendCounter] >> bit_counter) & 0x1);
-            } else if(sendCounter < 1023) {
+            } else if(sendCounter < packet.numBytes - 1) {
               bit_counter = 0;
               sendCounter++;
               data_bit = (packet.data[sendCounter] & 0x1);
-            } else if(sendCounter == 1023) {
+            } else if(sendCounter == packet.numBytes - 1) {
                 sendCounter++;
+                bit_counter = 0;
                 continue;
             }
             bit_counter++;

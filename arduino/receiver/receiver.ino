@@ -73,7 +73,7 @@ int main(void)
 {
   DDRC = 0xFF;  //data on C0
   DDRB=0x0F;    //trigger snoop on B0
-  uint8_t data_buffer[1024];
+  uint8_t data_buffer[20000];
   transmit = 0;
   flushData = 0;
   _Bool new_bit;
@@ -81,9 +81,8 @@ int main(void)
   uint32_t bit_counter = 0;
   uint32_t i = 0;
   uint8_t current_byte = 0x00;
-  uint32_t test_bit = 0x00;
 
-  //###############   PIN INTERRRUPT SETUP  #####################
+  //###############   PIN INTERRRUPT SETUP  #####################-
   DDRD = DDRD | (0<<PORTD2)| (0<<PORTD3);  //D2 Interrupt set to input
   EICRA = 0<<ISC01 | 1<<ISC00; //set INT0 to trigger on logic change [0 1]
   EIMSK = 1<<INT0; // enable INT0
@@ -110,28 +109,10 @@ int main(void)
         // Bit counter is maxed, store byte in buffer, reset byte, reset bit counter
         data_buffer[byte_counter] = current_byte;
         byte_counter++;
+        USART_write_char(current_byte);
         current_byte = 0x00;
         bit_counter = 0;
       }
     }  
-
-    // Wait to flush the data to serial
-    if(flushData) {
-      cli();
-      // Let PC app know we're sending data
-      USART_write_char('D');
-      
-      // Write each element in buffer to serial, erasing buffered location
-      for(i = 0; i < 1024; i++) {
-        PORTC=test_bit;
-        test_bit ^= test_bit; 
-        USART_write_char(data_buffer[i]);
-        data_buffer[i] = 0x00;
-      }
-      // Reset buffer position counter
-      byte_counter = 0;
-      flushData = 0;
-      sei();
-    }
   }
 }

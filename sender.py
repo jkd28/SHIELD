@@ -104,7 +104,7 @@ def main():
             print_success("Start-bit Acknowledged")
 
         # Open file for reading
-        filename = "LongHP.txt"
+        filename = "HP.txt"
         file_data = open(filename, "rb").read()
         # print(file_data)
 
