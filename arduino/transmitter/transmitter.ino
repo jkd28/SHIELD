@@ -6,8 +6,8 @@
 #define USART_BAUDRATE 115200
 #define BAUD_PRESCALE (((F_CPU / (USART_BAUDRATE * 8UL)))-1)
 #define PACKET_SIZE 1024
-#define LOW_BIT 0x36  // 36kHz
-#define HIGH_BIT 0x2F // 42kHz
+#define LOW_BIT 0x34  // 36kHz
+#define HIGH_BIT 0x2E // 42kHz
 #define NO_BIT 0x3F   // 32kHz
 
 // Define some globals
