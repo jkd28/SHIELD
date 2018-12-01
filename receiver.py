@@ -18,12 +18,12 @@ def hash_data(data):
     return hashed_data
 
 
-def configure_serial(port, baudrate):
+def configure_serial(port):
     connection = serial.Serial()
     # configure the serial connection settings
     try:
         connection.port = port
-        connection.baudrate = baudrate
+        connection.baudrate = 115200
         connection.timeout = 20
         return [True, connection]
     except ValueError:
@@ -55,8 +55,7 @@ def main():
 
     # Configure the serial port using inputs
     serial_port = sys.argv[1]
-    serial_rate = sys.argv[2]
-    [config_success, connection] = configure_serial(serial_port, serial_rate)
+    [config_success, connection] = configure_serial(serial_port)
     if not config_success:
         print_critical_failure("Invalid Port/Baudrate Values")
         sys.exit(1)
