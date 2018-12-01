@@ -47,25 +47,46 @@ def print_success(success_string):
 
 
 def print_usage():
-    usage_string = "\nUSAGE: python sender.py [port] [baudrate]\n"
+    usage_string = """USAGE: python sender.py [port] (filename)
+                       port     - The port over which to establish a serial connection
+                       filename - (Optional) Filedata to transmit"""
+
     print(usage_string)
     return usage_string
 
 
-def configure_serial(port, baudrate):
+def configure_serial(port):
     connection = serial.Serial()
     # configure the serial connection settings
     try:
         connection.port = port
-        connection.baudrate = baudrate
+        connection.baudrate = 115200
         connection.timeout = 30
         return [True, connection]
     except ValueError:
         return [False, connection]
 
+def create_file_from_user_input():
+    print("Enter your content. Ctrl-Z ( windows ) to save it.")
+    contents = []
+    while True:
+        try:
+            line = input()
+        except EOFError:
+            break
+        contents.append(line)
+
+    # write user input to a file
+    out_file = open("userinput.txt", "w")
+    for line in contents:
+        out_file.write(line)
+
+    # clean up
+    out_file.close()
+
 
 def main():
-    if not len(sys.argv) == 3:
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
         print_critical_failure("Invalid usage")
         print_usage()
         sys.exit(1)
@@ -74,8 +95,7 @@ def main():
 
     # Configure the serial port using inputs
     serial_port = sys.argv[1]
-    serial_rate = sys.argv[2]
-    [config_success, connection] = configure_serial(serial_port, serial_rate)
+    [config_success, connection] = configure_serial(serial_port)
     if not config_success:
         print_critical_failure("Invalid Port/Baudrate Values")
         sys.exit(1)
@@ -89,9 +109,20 @@ def main():
         print_critical_failure("Error connecting to serial device")
         sys.exit(1)
 
+    # Parse file from input, if theres an input
+    if len(sys.argv) == 3:
+        filename = sys.argv[2]
+    else:
+        filename = "userinput.txt"
+        create_file_from_user_input()
+
     # Send some data
     user_data = input("Press enter to send: ")
-    while user_data == "":
+    proceed = False
+    if user_data == "":
+        proceed = True
+
+    while proceed:
         # Send start bit and wait for acknowledgement
         connection.write(bytes('S'.encode("UTF-8", "ignore")))
         ack = connection.read(2)
@@ -103,8 +134,6 @@ def main():
         else:
             print_success("Start-bit Acknowledged")
 
-        # Open file for reading
-        filename = "HP.txt"
         file_data = open(filename, "rb").read()
         # print(file_data)
 
@@ -140,24 +169,14 @@ def main():
         data_hash = hash_data(file_data)
         filename_bytes = getFilenameInByteArray(filename)
         initializer_packet = struct.pack('<32s32si', filename_bytes, data_hash, number_of_packets + 1)
-        # print(data_hash)
-        # print(filename_bytes)
-        # print(initializer_packet)
-        # print(len(initializer_packet))
 
         print("\nWriting Initialization Packet...\n\n")
         connection.write(initializer_packet)
 
         ## DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG BELOW
         arduino_packets = connection.read(4)
-        # print("\nOur number of packets:  " + str(number_of_packets.to_bytes(4, byteorder='little')))
-        # print("Micro's num of packets:  " + str(arduino_packets))
         arduino_filename = connection.read(32)
-        # print("\nOur filename bytes:     " + str(filename_bytes))
-        # print("Arduino's Filename bytes: " + str(arduino_filename))
         arduino_hash = connection.read(32)
-        # print("\nOur hash    : " + str(data_hash))
-        # print("Arduino's hash: " + str(arduino_hash) + "\n\n")
         ## DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG ABOVE
 
         # Create info packet
@@ -229,7 +248,27 @@ def main():
             print_success("Program Reached End!")
 
         # Read output data
-        user_data = input("Press enter to send: ")
+        print("FILE TRANSFER COMPLETED: Select next information")
+        print("\t1) PRESS ENTER to repeat trasnmission")
+        print("\t2) INPUT FILENAME to transmit different file")
+        print("\t3) INPUT \"input\" to enter custom data")
+        print("\t4) INPUT \"exit\" to terminate")
+        user_data = input("> ")
+        # Parse file from input, if theres an input
+        if user_data == "":
+            proceed = True
+
+        elif user_data == "input":
+            proceed = True
+            create_file_from_user_input()
+            filename = "userinput.txt"
+
+        elif user_data == "exit":
+            proceed = False
+
+        else:
+            filename = user_data
+            proceed = True
 
     print("Exiting gracefully...")
     connection.close()
