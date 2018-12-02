@@ -107,15 +107,16 @@ def main():
         packet_data = connection.read(expected_bytes)
         packets.append(packet_data)
         packet_count = packet_count + 1
+
+        print("Packet " + str(packet_count) + " of " + str(num_packets) + " Received: " + str(len(packet_data)) + " bytes")
         print(packet_data)
-        print(len(packet_data))
-        print("Received Packet " + str(packet_count))
+        print()
 
     # Once finished reading each packet,
     our_hash = ''
     file = open(filename, "w")
     for packet in packets:
-        file.write(packet.decode("UTF-8"))
+        file.write(packet.decode("UTF-8", "replace"))
         our_hash = our_hash + packet.decode("UTF-8")
 
     file.close()
