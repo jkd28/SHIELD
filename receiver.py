@@ -13,7 +13,7 @@ import sys
 def hash_data(data):
     # Hash the data
     hash = SHA256.new()
-    hash.update(data.encode("UTF-8", "replace"))
+    #hash.update(data.encode("UTF-8", "replace"))
     hashed_data = hash.digest()
     return hashed_data
 
@@ -114,13 +114,14 @@ def main():
 
     # Once finished reading each packet,
     our_hash = ''
-    file = open(filename, "w")
+    file = open(filename, "wb")
     for packet in packets:
-        file.write(packet.decode("UTF-8", "replace"))
-        our_hash = our_hash + packet.decode("UTF-8")
+        file.write(packet)
 
     file.close()
-    our_hash = hash_data(our_hash)
+	
+    written_file = open(filename, "rb").read()
+    our_hash = hash_data(written_file)
     print("Computed Hash: " + str(our_hash))
 
     print("Comparing Hashes....")
