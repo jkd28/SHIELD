@@ -14,6 +14,7 @@ def hash_data(data):
     # Hash the data
     hash = SHA256.new()
     #hash.update(data.encode("UTF-8", "replace"))
+    hash.update(data)
     hashed_data = hash.digest()
     return hashed_data
 
@@ -119,7 +120,7 @@ def main():
         file.write(packet)
 
     file.close()
-	
+
     written_file = open(filename, "rb").read()
     our_hash = hash_data(written_file)
     print("Computed Hash: " + str(our_hash))
